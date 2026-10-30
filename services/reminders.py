@@ -8,6 +8,7 @@ import aiohttp
 from aiogram import Bot
 from sqlalchemy import select
 
+from schemas.user_settings import UserSettings
 from database.db import SessionFactory
 from database.models import User
 from services.api import get_progress, get_next_lesson
@@ -27,6 +28,7 @@ def parse_datetime(value: str) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
+
 async def process_user_reminder(bot: Bot, telegram_id: int):
     now = datetime.now(timezone.utc)
 
@@ -38,24 +40,27 @@ async def process_user_reminder(bot: Bot, telegram_id: int):
     async with SessionFactory() as session:
         user = await session.get(User, telegram_id)
 
-        if not user or not user.reminders_enabled:
+        if user is None:
+            logger.info("Пользователь отсутствует: %s", telegram_id)
+            return
+
+        settings = UserSettings.model_validate(user)
+
+        if not settings.reminders_enabled:
             logger.info(
-                "Напоминания отключены или пользователь отсутствует: %s",
+                "Напоминания отключены для пользователя %s",
                 telegram_id,
             )
             return
 
-        if not is_reminder_time(
-                user.reminder_schedule,
-                user.timezone,
-        ):
+        if not is_reminder_time(settings):
             logger.debug(
                 "Сейчас не время отправки напоминания пользователю %s",
                 telegram_id,
             )
             return
-        
-        interval_hours = user.reminder_interval_hours
+
+        interval_hours = settings.reminder_interval_hours
         last_sent = user.last_reminder_sent_at
 
         if last_sent:
@@ -144,15 +149,11 @@ async def process_user_reminder(bot: Bot, telegram_id: int):
             if user:
                 user.last_reminder_sent_at = now
 
-
     except (aiohttp.ClientError, asyncio.TimeoutError):
         logger.exception("Ошибка API для %s", telegram_id)
 
-
-    except Exception as exc:
+    except Exception:
         logger.exception("Ошибка напоминания для %s", telegram_id)
-
-
 
 
 

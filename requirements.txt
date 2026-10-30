@@ -8,3 +8,5 @@ python-dotenv>=1.0
 greenlet>=3.0
 tzdata
 alembic
+pydantic
+pydantic-settings

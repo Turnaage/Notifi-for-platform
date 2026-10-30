@@ -1,14 +1,25 @@
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-import os
 
-from dotenv import load_dotenv
+class Settings(BaseSettings):
+    BOT_TOKEN: str
+    DATABASE_URL: str
+    API_BASE_URL: str
 
-load_dotenv()
+    PROXY: str | None = None
+    API_TOKEN: str | None = None
 
-BOT_TOKEN = os.environ["BOT_TOKEN"]
-DATABASE_URL = os.environ["DATABASE_URL"]
-API_BASE_URL = os.environ["API_BASE_URL"].rstrip("/")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
-PROXY = os.getenv("PROXY") or None
 
-API_TOKEN = os.getenv("API_TOKEN")
+settings = Settings()
+
+BOT_TOKEN = settings.BOT_TOKEN
+DATABASE_URL = settings.DATABASE_URL
+API_BASE_URL = settings.API_BASE_URL.rstrip("/")
+PROXY = settings.PROXY or None
+API_TOKEN = settings.API_TOKEN

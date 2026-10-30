@@ -1,5 +1,7 @@
 from datetime import datetime
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from schemas.user_settings import UserSettings
 
 
 REMINDER_SCHEDULES = {
@@ -21,26 +23,18 @@ REMINDER_SCHEDULES = {
 }
 
 
-def is_reminder_time(
-    schedule_name: str,
-    timezone: str,
-) -> bool:
+def is_reminder_time(settings: UserSettings) -> bool:
     """
     Проверяет, разрешено ли отправлять напоминание
     в текущий момент по расписанию пользователя.
     """
-
-    schedule = REMINDER_SCHEDULES.get(schedule_name)
-
-    if schedule is None:
-        schedule = REMINDER_SCHEDULES["after_work"]
+    schedule = REMINDER_SCHEDULES[settings.reminder_schedule]
 
     try:
-        local_now = datetime.now(ZoneInfo(timezone))
-    except Exception:
+        local_now = datetime.now(ZoneInfo(settings.timezone))
+    except (ZoneInfoNotFoundError, ValueError):
         local_now = datetime.now(ZoneInfo("Europe/Moscow"))
 
-    # Понедельник — пятница
     if local_now.weekday() < 5:
         start_time, end_time = schedule["weekday"]
     else:
