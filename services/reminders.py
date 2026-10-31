@@ -3,7 +3,6 @@ import aiohttp
 import asyncio
 
 from html import escape
-
 from aiogram import Bot
 from sqlalchemy import select
 from datetime import (
@@ -11,8 +10,8 @@ from datetime import (
     timedelta,
     timezone,
 )
-
 from urllib.parse import urlparse
+
 from schemas.user_settings import UserSettings
 from database.db import SessionFactory
 from database.models import User

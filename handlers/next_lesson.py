@@ -2,9 +2,9 @@
 import aiohttp
 
 from html import escape
-
 from aiogram.filters import Command
 from aiogram.types import Message
+
 from services.api import get_next_lesson
 from core.config import logger, router
 

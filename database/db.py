@@ -1,8 +1,10 @@
 
 from sqlalchemy import select
 from contextlib import asynccontextmanager
-
 from sqlalchemy.orm import joinedload, selectinload
+
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
 from database.models import User, UserSettings
 from core.config import (
     DATABASE_URL,
@@ -11,7 +13,7 @@ from core.config import (
     allowed_schedules,
 )
 
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
 
 
 engine = create_async_engine(

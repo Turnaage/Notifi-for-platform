@@ -2,9 +2,10 @@
 import asyncio
 
 from aiogram import Dispatcher
+from aiogram.types import BotCommand
+
 from scheduler import start_scheduler, scheduler
 
-from aiogram.types import BotCommand
 from core.logging_config import setup_logging
 from core.bot import aiogram_bot
 from database.db import close_db

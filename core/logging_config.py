@@ -1,7 +1,7 @@
 
 import logging
-
 from logging.handlers import RotatingFileHandler
+
 from core.config import (
     MAX_LOG_SIZE,
     BACKUP_COUNT,
