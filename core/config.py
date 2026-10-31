@@ -27,14 +27,14 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-"""         settings        """
+"""         settings         """
 BOT_TOKEN = settings.BOT_TOKEN
 DATABASE_URL = settings.DATABASE_URL
 API_BASE_URL = settings.API_BASE_URL.rstrip("/")
 PROXY = settings.PROXY or None
 API_TOKEN = settings.API_TOKEN
 
-"""            logger               """
+"""         logger         """
 BASE_DIR = Path(__file__).resolve().parent.parent
 LOG_DIR = BASE_DIR / "logs"
 
@@ -49,7 +49,7 @@ DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 logger = logging.getLogger(__name__)
 
-"""        handler_config         """
+"""         handler_config         """
 
 router = Router()
 
@@ -81,5 +81,5 @@ REMINDER_SCHEDULES = {
     },
 }
 
-"""scheduler_config"""
+"""         scheduler_config         """
 scheduler = AsyncIOScheduler(timezone="UTC")
