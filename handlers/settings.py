@@ -1,15 +1,13 @@
 
-import aiohttp
-from aiogram import F
-from aiogram.filters import Command
-from aiogram.types import (
-    CallbackQuery,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    Message,
-)
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+import aiohttp
+
+from aiogram import F
+
+from aiogram.filters import Command
+from schemas.user_settings import UserSettings
+from services.api import update_lesson_mode
+from services.schedule import REMINDER_SCHEDULES
 from database.db import (
     ensure_user,
     get_user,
@@ -17,11 +15,19 @@ from database.db import (
     set_reminder_interval_hours,
     set_reminder_schedule,
 )
-from schemas.user_settings import UserSettings
-from services.api import update_lesson_mode
-from services.schedule import REMINDER_SCHEDULES
-from core.config import logger, router, REMINDER_INTERVALS
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
+from core.config import (
+    logger,
+    router,
+    REMINDER_INTERVALS,
+)
 
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
 async def get_user_settings(telegram_id: int) -> UserSettings | None:

@@ -1,17 +1,21 @@
 
 from datetime import datetime
-
 from sqlalchemy import (
     BigInteger,
     Boolean,
     DateTime,
     ForeignKey,
-    Index,
     Integer,
     String,
     func,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    relationship
+)
 
 
 class Base(DeclarativeBase):
@@ -23,40 +27,25 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
-        unique=True,
+        autoincrement=True,
     )
 
     telegram_id: Mapped[int] = mapped_column(
         BigInteger,
-    )
-
-    reminders_enabled: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True,
+        unique=True,
         nullable=False,
     )
 
-    reminder_interval_hours: Mapped[int] = mapped_column(
-        Integer,
-        default=48,
-        server_default='48',
-        nullable=False,
+    settings: Mapped["UserSettings"] = relationship(
+        back_populates="user",
+        uselist=False,
+        cascade="all,delete-orphan",
     )
 
-    reminder_schedule = mapped_column(
-        String(20),
-        default="after_work",
-        server_default="after_work",
-        nullable=False,
+    notifications: Mapped[list["Notification"]] = relationship(
+        back_populates="user",
+        cascade="all,delete-orphan",
     )
-
-    timezone = mapped_column(
-        String(50),
-        default="Europe/Moscow",
-        server_default="Europe/Moscow",
-        nullable=False,
-    )
-
 
 
 class Notification(Base):
@@ -64,16 +53,12 @@ class Notification(Base):
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
-        unique=True,
+        autoincrement=True,
     )
 
-    telegram_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-    )
-
-    last_reminder_sent_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
+    user_id: Mapped[int] = mapped_column(
+       ForeignKey("users.id", ondelete="CASCADE"),
+       unique=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -89,4 +74,46 @@ class Notification(Base):
         nullable=False,
     )
 
+    user: Mapped[User] = relationship(
+        back_populates="notifications"
+    )
 
+
+class UserSettings(Base):
+    __tablename__ = "user_settings"
+
+    id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    reminders_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
+
+    reminder_interval_hours: Mapped[int] = mapped_column(
+        Integer,
+        default=48,
+        server_default='48',
+        nullable=False,
+    )
+
+    reminder_schedule: Mapped[str] = mapped_column(
+        String(20),
+        default="after_work",
+        server_default="after_work",
+        nullable=False,
+    )
+
+    timezone: Mapped[str] = mapped_column(
+        String(50),
+        default="Europe/Moscow",
+        server_default="Europe/Moscow",
+        nullable=False,
+    )
+
+    user: Mapped[User] = relationship(
+        back_populates="settings"
+    )

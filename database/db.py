@@ -1,10 +1,17 @@
 
+from sqlalchemy import select
 from contextlib import asynccontextmanager
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.dialects.postgresql import insert
 
-from core.config import DATABASE_URL, logger, REMINDER_INTERVALS
-from database.models import User
+from sqlalchemy.orm import joinedload, selectinload
+from database.models import User, UserSettings
+from core.config import (
+    DATABASE_URL,
+    logger,
+    REMINDER_INTERVALS,
+    allowed_schedules,
+)
+
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 
 engine = create_async_engine(
@@ -28,21 +35,30 @@ async def get_db():
 async def close_db():
     await engine.dispose()
 
-async def ensure_user(telegram_id: int):
-    """Создать пользователя, если его ещё нет."""
+
+async def ensure_user(telegram_id: int) -> None:
+    """Создать пользователя и его настройки, если их ещё нет."""
+
     try:
         async with get_db() as db:
-            statement = (
-                insert(User)
-                .values(telegram_id=telegram_id)
-                .on_conflict_do_nothing(
-                    index_elements=[User.telegram_id]
-                )
+            user = await db.scalar(
+                select(User).where(User.telegram_id == telegram_id)
             )
 
-            await db.execute(statement)
+            if user is None:
+                user = User(telegram_id=telegram_id)
+                db.add(user)
+                await db.flush()
+
+            if user.settings is None:
+                user.settings = UserSettings()
+
             await db.commit()
-        logger.info("Пользователь %s проверен в базе данных", telegram_id)
+
+        logger.info(
+            "Пользователь %s проверен в базе данных",
+            telegram_id,
+        )
 
     except Exception:
         logger.exception(
@@ -52,10 +68,18 @@ async def ensure_user(telegram_id: int):
         raise
 
 
+
 async def get_user(telegram_id: int) -> User | None:
     try:
         async with get_db() as db:
-            user = await db.get(User, telegram_id)
+            user = await db.scalar(
+                select(User)
+                .where(User.telegram_id == telegram_id)
+                .options(
+                    joinedload(User.settings),
+                    selectinload(User.notifications),
+                )
+            )
 
         if user is None:
             logger.info("Пользователь %s не найден", telegram_id)
@@ -69,23 +93,44 @@ async def get_user(telegram_id: int) -> User | None:
         )
         raise
 
+async def get_user_with_settings(db, telegram_id: int) -> User:
+    user = await db.scalar(
+        select(User)
+        .where(User.telegram_id == telegram_id)
+        .options(joinedload(User.settings))
+    )
+
+    if user is None:
+        raise ValueError(f"Пользователь {telegram_id} не найден")
+
+    if user.settings is None:
+        user.settings = UserSettings()
+
+    return user
 
 async def set_reminders_enabled(
     telegram_id: int,
     enabled: bool,
-):
+) -> None:
     try:
-
         async with get_db() as db:
-            user = await db.get(User, telegram_id)
-            user.reminders_enabled = enabled
-            await db.commit()
-        logger.info(
-            "Настройка напоминаний пользователя %s изменена: %s",
-            telegram_id,
-            enabled,
-        )
+            user = await get_user_with_settings(db, telegram_id)
 
+            if user:
+                user.settings.reminders_enabled = enabled
+
+                await db.commit()
+
+                logger.info(
+                    "Настройка напоминаний пользователя %s изменена: %s",
+                    telegram_id,
+                    enabled,
+                )
+            else:
+                logger.info(
+                    "Пользователь %s не найден в базе",
+                    telegram_id,
+                )
     except Exception:
         logger.exception(
             "Ошибка изменения настроек напоминаний пользователя %s",
@@ -94,10 +139,11 @@ async def set_reminders_enabled(
         raise
 
 
+
 async def set_reminder_interval_hours(
     telegram_id: int,
     interval_hours: int,
-):
+) -> None:
 
     if interval_hours not in REMINDER_INTERVALS:
         raise ValueError(
@@ -107,14 +153,14 @@ async def set_reminder_interval_hours(
 
     try:
         async with get_db() as db:
-            user = await db.get(User, telegram_id)
+            user = await get_user_with_settings(db, telegram_id)
 
             if user is None:
                 raise ValueError(
                     f"Пользователь {telegram_id} не найден"
                 )
 
-            user.reminder_interval_hours = interval_hours
+            user.settings.reminder_interval_hours = interval_hours
             await db.commit()
 
         logger.info(
@@ -134,11 +180,6 @@ async def set_reminder_schedule(
     telegram_id: int,
     schedule_name: str,
 ):
-    allowed_schedules = {
-        "after_work",
-        "morning",
-        "evening",
-    }
 
     if schedule_name not in allowed_schedules:
         raise ValueError(
@@ -148,14 +189,14 @@ async def set_reminder_schedule(
 
     try:
         async with get_db() as db:
-            user = await db.get(User, telegram_id)
+            user = await get_user_with_settings(db, telegram_id)
 
             if user is None:
                 raise ValueError(
                     f"Пользователь {telegram_id} не найден"
                 )
 
-            user.reminder_schedule = schedule_name
+            user.settings.reminder_schedule = schedule_name
             await db.commit()
 
         logger.info(

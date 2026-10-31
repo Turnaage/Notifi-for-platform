@@ -1,10 +1,14 @@
+
 import logging
+
 from pathlib import Path
-
 from aiogram import Router
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    SettingsConfigDict,
+)
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 class Settings(BaseSettings):
     BOT_TOKEN: str
@@ -50,6 +54,14 @@ logger = logging.getLogger(__name__)
 router = Router()
 
 REMINDER_INTERVALS = (24, 48, 72, 168)
+
+INACTIVITY_HOURS = 24
+
+allowed_schedules = {
+    "after_work",
+    "morning",
+    "evening",
+}
 
 REMINDER_SCHEDULES = {
     "after_work": {

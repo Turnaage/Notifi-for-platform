@@ -1,13 +1,15 @@
 
 from aiogram.filters import CommandStart
+from database.db import ensure_user
 from aiogram.types import (
     Message,
     ReplyKeyboardMarkup,
     KeyboardButton,
 )
-
-from database.db import ensure_user
-from core.config import logger, router
+from core.config import (
+    logger,
+    router,
+)
 
 
 main_keyboard = ReplyKeyboardMarkup(

@@ -1,20 +1,26 @@
-from html import escape
-from urllib.parse import urlparse
-import asyncio
-from datetime import datetime, timedelta, timezone
 
 import aiohttp
+import asyncio
+
+from html import escape
+
 from aiogram import Bot
 from sqlalchemy import select
+from datetime import (
+    datetime,
+    timedelta,
+    timezone,
+)
 
+from urllib.parse import urlparse
 from schemas.user_settings import UserSettings
 from database.db import SessionFactory
 from database.models import User
 from services.api import get_progress, get_next_lesson
 from services.schedule import is_reminder_time
-from core.config import logger
+from core.config import logger, INACTIVITY_HOURS
 
-INACTIVITY_HOURS = 24
+
 
 
 def parse_datetime(value: str) -> datetime:

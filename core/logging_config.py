@@ -1,7 +1,15 @@
 
 import logging
+
 from logging.handlers import RotatingFileHandler
-from core.config import MAX_LOG_SIZE, BACKUP_COUNT, BASE_DIR, LOG_DIR, LOG_FORMAT, DATE_FORMAT
+from core.config import (
+    MAX_LOG_SIZE,
+    BACKUP_COUNT,
+    BASE_DIR,
+    LOG_DIR,
+    LOG_FORMAT,
+    DATE_FORMAT,
+)
 
 
 def create_file_handler(

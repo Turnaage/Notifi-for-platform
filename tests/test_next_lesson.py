@@ -1,9 +1,8 @@
 
-from types import SimpleNamespace
-from unittest.mock import AsyncMock
-
 import pytest
 
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from handlers import next_lesson
 
 

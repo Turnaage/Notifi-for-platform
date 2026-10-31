@@ -1,10 +1,10 @@
 
-from types import SimpleNamespace
-from unittest.mock import AsyncMock
-
 import pytest
 
+from types import SimpleNamespace
 from handlers import start
+
+from unittest.mock import AsyncMock
 
 
 @pytest.mark.asyncio

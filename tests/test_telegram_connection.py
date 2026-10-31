@@ -1,8 +1,9 @@
 import os
-
 import pytest
+
 from aiogram import Bot
 from dotenv import load_dotenv
+
 
 load_dotenv()
 
