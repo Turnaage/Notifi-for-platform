@@ -1,12 +1,9 @@
 
-import logging
 
 import aiohttp
 
-from core.config import API_BASE_URL, API_TOKEN
+from core.config import API_BASE_URL, API_TOKEN, logger
 
-
-logger = logging.getLogger(__name__)
 
 TIMEOUT = aiohttp.ClientTimeout(total=15)
 

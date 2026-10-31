@@ -1,7 +1,6 @@
 from html import escape
 from urllib.parse import urlparse
 import asyncio
-import logging
 from datetime import datetime, timedelta, timezone
 
 import aiohttp
@@ -13,8 +12,7 @@ from database.db import SessionFactory
 from database.models import User
 from services.api import get_progress, get_next_lesson
 from services.schedule import is_reminder_time
-
-logger = logging.getLogger(__name__)
+from core.config import logger
 
 INACTIVITY_HOURS = 24
 

@@ -1,13 +1,11 @@
 
-import logging
 
 from aiogram import Bot
 from aiogram.client.session.aiohttp import AiohttpSession
 
-from core.config import BOT_TOKEN, PROXY
+from core.config import BOT_TOKEN, PROXY, logger
 
 
-logger = logging.getLogger(__name__)
 
 if PROXY:
     session = AiohttpSession(

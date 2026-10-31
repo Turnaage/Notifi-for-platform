@@ -1,19 +1,10 @@
 
-import logging
-
-from sqlalchemy import select
+from contextlib import asynccontextmanager
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
 
-from core.config import DATABASE_URL
-from database.models import Base, User
-
-
-logger = logging.getLogger(__name__)
+from core.config import DATABASE_URL, logger, REMINDER_INTERVALS
+from database.models import User
 
 
 engine = create_async_engine(
@@ -24,41 +15,23 @@ engine = create_async_engine(
 )
 
 SessionFactory = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
+    bind=engine,
     expire_on_commit=False,
 )
 
 
-async def init_db():
-    """
-    Проверить доступность базы данных.
-    Структуру базы создаёт Alembic.
-    """
-    try:
-        async with engine.connect() as connection:
-            await connection.execute(select(1))
-
-        logger.info("Подключение к базе данных проверено")
-
-    except Exception:
-        logger.exception("Ошибка подключения к базе данных")
-        raise
+@asynccontextmanager
+async def get_db():
+    async with SessionFactory() as db:
+        yield db
 
 async def close_db():
-    try:
-        await engine.dispose()
-        logger.info("Подключение к базе данных закрыто")
-
-    except Exception:
-        logger.exception("Ошибка закрытия базы данных")
-        raise
-
+    await engine.dispose()
 
 async def ensure_user(telegram_id: int):
     """Создать пользователя, если его ещё нет."""
     try:
-        async with SessionFactory.begin() as session:
+        async with get_db() as db:
             statement = (
                 insert(User)
                 .values(telegram_id=telegram_id)
@@ -67,8 +40,8 @@ async def ensure_user(telegram_id: int):
                 )
             )
 
-            await session.execute(statement)
-
+            await db.execute(statement)
+            await db.commit()
         logger.info("Пользователь %s проверен в базе данных", telegram_id)
 
     except Exception:
@@ -81,8 +54,8 @@ async def ensure_user(telegram_id: int):
 
 async def get_user(telegram_id: int) -> User | None:
     try:
-        async with SessionFactory() as session:
-            user = await session.get(User, telegram_id)
+        async with get_db() as db:
+            user = await db.get(User, telegram_id)
 
         if user is None:
             logger.info("Пользователь %s не найден", telegram_id)
@@ -102,12 +75,11 @@ async def set_reminders_enabled(
     enabled: bool,
 ):
     try:
-        await ensure_user(telegram_id)
 
-        async with SessionFactory.begin() as session:
-            user = await session.get(User, telegram_id)
+        async with get_db() as db:
+            user = await db.get(User, telegram_id)
             user.reminders_enabled = enabled
-
+            await db.commit()
         logger.info(
             "Настройка напоминаний пользователя %s изменена: %s",
             telegram_id,
@@ -126,18 +98,16 @@ async def set_reminder_interval_hours(
     telegram_id: int,
     interval_hours: int,
 ):
-    allowed_intervals = {24, 48, 72, 168}
 
-    if interval_hours not in allowed_intervals:
+    if interval_hours not in REMINDER_INTERVALS:
         raise ValueError(
             f"Недопустимый интервал напоминаний: {interval_hours}"
         )
 
-    await ensure_user(telegram_id)
 
     try:
-        async with SessionFactory.begin() as session:
-            user = await session.get(User, telegram_id)
+        async with get_db() as db:
+            user = await db.get(User, telegram_id)
 
             if user is None:
                 raise ValueError(
@@ -145,6 +115,7 @@ async def set_reminder_interval_hours(
                 )
 
             user.reminder_interval_hours = interval_hours
+            await db.commit()
 
         logger.info(
             "Интервал напоминаний пользователя %s установлен: %s часов",
@@ -174,11 +145,10 @@ async def set_reminder_schedule(
             f"Недопустимое расписание: {schedule_name}"
         )
 
-    await ensure_user(telegram_id)
 
     try:
-        async with SessionFactory.begin() as session:
-            user = await session.get(User, telegram_id)
+        async with get_db() as db:
+            user = await db.get(User, telegram_id)
 
             if user is None:
                 raise ValueError(
@@ -186,6 +156,7 @@ async def set_reminder_schedule(
                 )
 
             user.reminder_schedule = schedule_name
+            await db.commit()
 
         logger.info(
             "Расписание напоминаний пользователя %s изменено: %s",

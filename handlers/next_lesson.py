@@ -1,18 +1,12 @@
 
-import logging
 from html import escape
 
 import aiohttp
-from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
 from services.api import get_next_lesson
-
-
-logger = logging.getLogger(__name__)
-
-router = Router()
+from core.config import logger, router
 
 
 async def send_next_lesson(message: Message):

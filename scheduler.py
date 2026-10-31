@@ -1,15 +1,9 @@
 
-import logging
-
 from aiogram import Bot
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from services.reminders import check_reminders
+from core.config import logger, scheduler
 
-
-logger = logging.getLogger(__name__)
-
-scheduler = AsyncIOScheduler(timezone="UTC")
 
 
 def start_scheduler(bot: Bot):

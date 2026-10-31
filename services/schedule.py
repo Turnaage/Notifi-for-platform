@@ -1,26 +1,9 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from core.config import REMINDER_SCHEDULES
 from schemas.user_settings import UserSettings
 
-
-REMINDER_SCHEDULES = {
-    "after_work": {
-        "name": "После работы",
-        "weekday": ("18:00", "22:00"),
-        "weekend": ("10:00", "20:00"),
-    },
-    "morning": {
-        "name": "Утреннее",
-        "weekday": ("07:00", "09:00"),
-        "weekend": ("09:00", "12:00"),
-    },
-    "evening": {
-        "name": "Вечернее",
-        "weekday": ("18:00", "22:00"),
-        "weekend": ("18:00", "22:00"),
-    },
-}
 
 
 def is_reminder_time(settings: UserSettings) -> bool:

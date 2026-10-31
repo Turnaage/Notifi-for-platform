@@ -1,7 +1,4 @@
 
-import logging
-
-from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.types import (
     Message,
@@ -10,11 +7,8 @@ from aiogram.types import (
 )
 
 from database.db import ensure_user
+from core.config import logger, router
 
-
-logger = logging.getLogger(__name__)
-
-router = Router()
 
 main_keyboard = ReplyKeyboardMarkup(
     keyboard=[

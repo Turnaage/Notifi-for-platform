@@ -1,8 +1,6 @@
 
-import logging
-
 import aiohttp
-from aiogram import F, Router
+from aiogram import F
 from aiogram.filters import Command
 from aiogram.types import (
     CallbackQuery,
@@ -22,12 +20,8 @@ from database.db import (
 from schemas.user_settings import UserSettings
 from services.api import update_lesson_mode
 from services.schedule import REMINDER_SCHEDULES
+from core.config import logger, router, REMINDER_INTERVALS
 
-logger = logging.getLogger(__name__)
-
-router = Router()
-
-REMINDER_INTERVALS = (24, 48, 72, 168)
 
 
 async def get_user_settings(telegram_id: int) -> UserSettings | None:

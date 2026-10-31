@@ -1,26 +1,19 @@
 
 import asyncio
-import logging
 
 from aiogram import Dispatcher
 from aiogram.types import BotCommand
 
 from core.logging_config import setup_logging
 from core.bot import aiogram_bot
-from database.db import init_db, close_db
-from handlers.start import router as start_router
-from handlers.settings import router as settings_router
-from handlers.next_lesson import router as next_lesson_router
+from database.db import close_db
 from scheduler import start_scheduler, scheduler
-
-
-logger = logging.getLogger(__name__)
+from core.config import logger, router
+from handlers import start, next_lesson, settings
 
 dp = Dispatcher()
 
-dp.include_router(start_router)
-dp.include_router(next_lesson_router)
-dp.include_router(settings_router)
+dp.include_router(router)
 
 
 async def main():
@@ -29,7 +22,6 @@ async def main():
     logger.info("Запуск приложения Notify_py")
 
     try:
-        await init_db()
         logger.info("Подключение к базе данных выполнено")
 
         await aiogram_bot.set_my_commands([

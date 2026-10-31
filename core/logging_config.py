@@ -1,19 +1,7 @@
 
 import logging
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-LOG_DIR = BASE_DIR / "logs"
-
-MAX_LOG_SIZE = 5 * 1024 * 1024
-BACKUP_COUNT = 5
-
-LOG_FORMAT = (
-    "%(asctime)s | %(levelname)s | "
-    "%(name)s | %(message)s"
-)
-DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+from core.config import MAX_LOG_SIZE, BACKUP_COUNT, BASE_DIR, LOG_DIR, LOG_FORMAT, DATE_FORMAT
 
 
 def create_file_handler(

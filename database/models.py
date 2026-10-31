@@ -21,9 +21,13 @@ class Base(DeclarativeBase):
 class User(Base):
     __tablename__ = "users"
 
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        unique=True,
+    )
+
     telegram_id: Mapped[int] = mapped_column(
         BigInteger,
-        primary_key=True,
     )
 
     reminders_enabled: Mapped[bool] = mapped_column(
@@ -37,6 +41,34 @@ class User(Base):
         default=48,
         server_default='48',
         nullable=False,
+    )
+
+    reminder_schedule = mapped_column(
+        String(20),
+        default="after_work",
+        server_default="after_work",
+        nullable=False,
+    )
+
+    timezone = mapped_column(
+        String(50),
+        default="Europe/Moscow",
+        server_default="Europe/Moscow",
+        nullable=False,
+    )
+
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        unique=True,
+    )
+
+    telegram_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
     )
 
     last_reminder_sent_at: Mapped[datetime | None] = mapped_column(
@@ -57,16 +89,4 @@ class User(Base):
         nullable=False,
     )
 
-    reminder_schedule = mapped_column(
-        String(20),
-        default="after_work",
-        server_default="after_work",
-        nullable=False,
-    )
 
-    timezone = mapped_column(
-        String(50),
-        default="Europe/Moscow",
-        server_default="Europe/Moscow",
-        nullable=False,
-    )

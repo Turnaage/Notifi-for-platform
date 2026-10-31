@@ -16,10 +16,6 @@ def test_main_imports_required_routers():
     assert hasattr(main, "settings_router")
 
 
-def test_main_imports_database_initialization():
-    assert hasattr(main, "init_db")
-    assert callable(main.init_db)
-
 
 def test_main_imports_scheduler():
     assert hasattr(main, "scheduler")
