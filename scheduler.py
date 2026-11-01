@@ -1,4 +1,3 @@
-
 from aiogram import Bot
 
 from services.reminders import check_reminders

@@ -1,4 +1,3 @@
-
 from aiogram import Bot
 
 from core.config import BOT_TOKEN, PROXY, logger
