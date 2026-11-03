@@ -16,19 +16,27 @@ def test_database_exposes_required_operations():
         assert inspect.iscoroutinefunction(operation)
 
 
-def test_user_model_contains_reminder_fields():
+def test_models_contain_reminder_fields():
     user_columns = models.User.__table__.columns
+    settings_columns = models.UserSettings.__table__.columns
+    notification_columns = models.Notification.__table__.columns
 
-    required_columns = {
-        "telegram_id",
+    assert {"id", "telegram_id"}.issubset(user_columns.keys())
+
+    assert {
+        "id",
         "reminders_enabled",
         "reminder_interval_hours",
-        "last_reminder_sent_at",
+        "reminder_schedule",
+        "timezone",
+    }.issubset(settings_columns.keys())
+
+    assert {
+        "id",
+        "user_id",
         "created_at",
         "updated_at",
-    }
-
-    assert required_columns.issubset(set(user_columns.keys()))
+    }.issubset(notification_columns.keys())
 
 
 def test_telegram_id_is_unique_in_user_table():

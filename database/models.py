@@ -7,6 +7,7 @@ from sqlalchemy import (
     Integer,
     String,
     func,
+    text,
 )
 
 from sqlalchemy.orm import (
@@ -89,6 +90,7 @@ class UserSettings(Base):
     reminders_enabled: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
+        server_default=text("true"),
         nullable=False,
     )
 

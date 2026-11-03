@@ -6,9 +6,13 @@ from aiogram.types import BotCommand
 from scheduler import start_scheduler, scheduler
 
 from core.logging_config import setup_logging
-from core.bot import aiogram_bot
+from core.bot import create_bot
 from database.db import close_db
 from core.config import logger, router
+import handlers.settings
+import handlers.start
+import handlers.next_lesson
+import handlers.unknown
 
 dp = Dispatcher()
 
@@ -16,12 +20,16 @@ dp.include_router(router)
 
 
 async def main():
+    aiogram_bot = None
+
     setup_logging()
 
     logger.info("Запуск приложения Notify_py")
 
     try:
         logger.info("Подключение к базе данных выполнено")
+
+        aiogram_bot = create_bot()
 
         await aiogram_bot.set_my_commands([
             BotCommand(
@@ -42,6 +50,9 @@ async def main():
 
         start_scheduler(aiogram_bot)
         logger.info("Планировщик запущен")
+
+        await aiogram_bot.delete_webhook(drop_pending_updates=True)
+        logger.info("Очередь старых обновлений сброшена")
 
         await dp.start_polling(aiogram_bot)
 

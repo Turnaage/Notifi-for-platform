@@ -6,18 +6,20 @@ from aiogram.types import (
 )
 
 from database.db import ensure_user
-from core.config import (
-    logger,
-    router,
-)
+from core.config import logger, router
 
 
 main_keyboard = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text="Следующий урок")],
-        [KeyboardButton(text="Настройки")],
+        [
+            KeyboardButton(text="Следующий урок"),
+        ],
+        [
+            KeyboardButton(text="Настройки напоминаний"),
+        ],
     ],
     resize_keyboard=True,
+    is_persistent=True,
 )
 
 
@@ -34,14 +36,18 @@ async def start_handler(message: Message):
         await ensure_user(telegram_id)
 
         await message.answer(
-            "Привет! Я помогу тебе продолжать обучение "
-            "и буду напоминать о занятиях.\n\n"
-            "Выбери действие:",
+            "<b>Добро пожаловать!</b> 👋\n\n"
+            "Я помогу тебе сохранять регулярность обучения "
+            "и напомню, когда пора вернуться к основному курсу.\n\n"
+            "Ты можешь в любой момент открыть следующий урок "
+            "или изменить настройки напоминаний.\n\n"
+            "<b>Продолжим обучение?</b>",
             reply_markup=main_keyboard,
+            parse_mode="HTML",
         )
 
         logger.info(
-            "Приветственное сообщение отправлено пользователю %s",
+            "Главное меню отправлено пользователю %s",
             telegram_id,
         )
 

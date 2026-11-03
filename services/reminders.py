@@ -4,6 +4,7 @@ import asyncio
 from html import escape
 from aiogram import Bot
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload, selectinload
 from datetime import (
     datetime,
     timedelta,
@@ -13,7 +14,8 @@ from urllib.parse import urlparse
 
 from schemas.user_settings import UserSettings
 from database.db import SessionFactory
-from database.models import User
+from database.models import Notification, User
+from database.models import UserSettings as UserSettingsModel
 from services.api import get_progress, get_next_lesson
 from services.schedule import is_reminder_time
 from core.config import logger, INACTIVITY_HOURS
@@ -40,13 +42,27 @@ async def process_user_reminder(bot: Bot, telegram_id: int):
     )
 
     async with SessionFactory() as session:
-        user = await session.get(User, telegram_id)
+        user = await session.scalar(
+            select(User)
+            .where(User.telegram_id == telegram_id)
+            .options(
+                joinedload(User.settings),
+                selectinload(User.notifications),
+            )
+        )
 
         if user is None:
             logger.info("Пользователь отсутствует: %s", telegram_id)
             return
 
-        settings = UserSettings.model_validate(user)
+        if user.settings is None:
+            logger.warning(
+                "У пользователя %s отсутствуют настройки",
+                telegram_id,
+            )
+            return
+
+        settings = UserSettings.model_validate(user.settings)
 
         if not settings.reminders_enabled:
             logger.info(
@@ -63,7 +79,11 @@ async def process_user_reminder(bot: Bot, telegram_id: int):
             return
 
         interval_hours = settings.reminder_interval_hours
-        last_sent = user.last_reminder_sent_at
+
+        # В таблице notifications одна строка на пользователя,
+        # время последнего напоминания хранится в updated_at.
+        notification = user.notifications[0] if user.notifications else None
+        last_sent = notification.updated_at if notification else None
 
         if last_sent:
             if last_sent.tzinfo is None:
@@ -146,10 +166,30 @@ async def process_user_reminder(bot: Bot, telegram_id: int):
         )
 
         async with SessionFactory.begin() as session:
-            user = await session.get(User, telegram_id)
+            user = await session.scalar(
+                select(User)
+                .where(User.telegram_id == telegram_id)
+                .options(selectinload(User.notifications))
+            )
 
-            if user:
-                user.last_reminder_sent_at = now
+            if user is None:
+                logger.warning(
+                    "Пользователь %s исчез из базы после отправки",
+                    telegram_id,
+                )
+                return
+
+            notification = user.notifications[0] if user.notifications else None
+
+            if notification is None:
+                session.add(
+                    Notification(
+                        user_id=user.id,
+                        updated_at=now,
+                    )
+                )
+            else:
+                notification.updated_at = now
 
     except (aiohttp.ClientError, asyncio.TimeoutError):
         logger.exception("Ошибка API для %s", telegram_id)
@@ -164,9 +204,12 @@ async def check_reminders(bot: Bot):
 
     async with SessionFactory() as session:
         result = await session.scalars(
-            select(User.telegram_id).where(
-                User.reminders_enabled.is_(True)
+            select(User.telegram_id)
+            .join(
+                UserSettingsModel,
+                UserSettingsModel.id == User.id,
             )
+            .where(UserSettingsModel.reminders_enabled.is_(True))
         )
         telegram_ids = list(result.all())
 

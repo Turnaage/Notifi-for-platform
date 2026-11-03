@@ -1,8 +1,14 @@
 import aiohttp
 
 from html import escape
+from urllib.parse import urlparse
+
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import (
+    Message,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+)
 
 from services.api import get_next_lesson
 from core.config import logger, router
@@ -26,7 +32,10 @@ async def send_next_lesson(message: Message):
             )
 
             await message.answer(
-                "Сейчас нет доступных следующих уроков."
+                "<b>Пока нет доступных уроков</b>\n\n"
+                "Возможно, ты уже завершил программу "
+                "или новые материалы пока недоступны.",
+                parse_mode="HTML",
             )
             return
 
@@ -37,10 +46,12 @@ async def send_next_lesson(message: Message):
         )
 
         await message.answer(
-            "Не удалось связаться с платформой. Попробуй позже."
+            "<b>Не удалось получить информацию об уроке</b>\n\n"
+            "Платформа временно недоступна. "
+            "Попробуй немного позже.",
+            parse_mode="HTML",
         )
         return
-
 
     name = lesson.get("name")
     url = lesson.get("url")
@@ -52,18 +63,48 @@ async def send_next_lesson(message: Message):
         )
 
         await message.answer(
-            "Не удалось получить данные урока. Попробуй позже."
+            "<b>Не удалось открыть урок</b>\n\n"
+            "Информация о материале временно недоступна. "
+            "Попробуй позже.",
+            parse_mode="HTML",
         )
         return
 
-    safe_name = escape(name)
-    safe_url = escape(url, quote=True)
+    parsed_url = urlparse(url)
 
+    if parsed_url.scheme not in ("http", "https") or not parsed_url.netloc:
+        logger.warning(
+            "Некорректная ссылка на урок для пользователя %s",
+            telegram_id,
+        )
+
+        await message.answer(
+            "Ссылка на урок временно недоступна. "
+            "Попробуй позже."
+        )
+        return
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Открыть урок",
+                    url=url,
+                )
+            ]
+        ]
+    )
+
+    safe_name = escape(str(name))
 
     await message.answer(
-        f"Следующий урок: <b>{safe_name}</b>\n\n"
-        f'<a href="{safe_url}">Перейти к уроку</a>',
+        "📚 <b>Твой следующий урок</b>\n\n"
+        f"<b>{safe_name}</b>\n\n"
+        "Продолжай обучение в основном курсе. "
+        "Выдели немного времени, чтобы пройти следующий материал.",
+        reply_markup=keyboard,
         parse_mode="HTML",
+        disable_web_page_preview=True,
     )
 
     logger.info(

@@ -43,15 +43,20 @@ async def ensure_user(telegram_id: int) -> None:
     try:
         async with get_db() as db:
             user = await db.scalar(
-                select(User).where(User.telegram_id == telegram_id)
+                select(User)
+                .where(User.telegram_id == telegram_id)
+                .options(joinedload(User.settings))
             )
 
             if user is None:
-                user = User(telegram_id=telegram_id)
+                # Настройки создаём вместе с пользователем одним INSERT,
+                # иначе к моменту flush у них ещё нет значений по умолчанию.
+                user = User(
+                    telegram_id=telegram_id,
+                    settings=UserSettings(),
+                )
                 db.add(user)
-                await db.flush()
-
-            if user.settings is None:
+            elif user.settings is None:
                 user.settings = UserSettings()
 
             await db.commit()
