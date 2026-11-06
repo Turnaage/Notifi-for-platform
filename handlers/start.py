@@ -12,10 +12,10 @@ from core.config import logger, router
 main_keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text="Следующий урок"),
+            KeyboardButton(text="📖 Следующий урок"),
         ],
         [
-            KeyboardButton(text="Настройки напоминаний"),
+            KeyboardButton(text="⚙️ Настройки напоминаний"),
         ],
     ],
     resize_keyboard=True,

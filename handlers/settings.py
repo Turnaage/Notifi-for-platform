@@ -1,6 +1,7 @@
 import aiohttp
 
 from aiogram import F
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.types import (
     CallbackQuery,
@@ -20,6 +21,7 @@ from database.db import (
     set_reminder_interval_hours,
     set_reminder_schedule,
 )
+from handlers.start import main_keyboard
 from core.config import (
     logger,
     router,
@@ -61,6 +63,10 @@ def get_schedule_keyboard(current_schedule: str) -> InlineKeyboardMarkup:
     builder.button(
         text="← Назад к настройкам",
         callback_data="settings:back",
+    )
+    builder.button(
+        text="🏠 На главный экран",
+        callback_data="settings:main",
     )
     builder.adjust(1)
 
@@ -113,6 +119,12 @@ def get_settings_keyboard(settings: UserSettings) -> InlineKeyboardMarkup:
                     callback_data="settings:schedule",
                 )
             ],
+            [
+                InlineKeyboardButton(
+                    text="🏠 На главный экран",
+                    callback_data="settings:main",
+                )
+            ],
         ]
     )
 
@@ -140,6 +152,14 @@ def get_frequency_keyboard(current_interval: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton(
                 text="← Назад к настройкам",
                 callback_data="settings:back",
+            )
+        ]
+    )
+    buttons.append(
+        [
+            InlineKeyboardButton(
+                text="🏠 На главный экран",
+                callback_data="settings:main",
             )
         ]
     )
@@ -277,6 +297,26 @@ async def settings_back_handler(callback: CallbackQuery):
         await callback.message.edit_text(
             get_settings_text(settings),
             reply_markup=get_settings_keyboard(settings),
+            parse_mode="HTML",
+        )
+
+
+@router.callback_query(F.data == "settings:main")
+async def settings_main_handler(callback: CallbackQuery):
+    await callback.answer()
+
+    if callback.message:
+        try:
+            await callback.message.edit_reply_markup(reply_markup=None)
+        except TelegramBadRequest:
+            logger.debug(
+                "Не удалось убрать клавиатуру настроек у сообщения %s",
+                callback.message.message_id,
+            )
+
+        await callback.message.answer(
+            "🏠 <b>Главное меню</b>\n\nВыбери действие:",
+            reply_markup=main_keyboard,
             parse_mode="HTML",
         )
 

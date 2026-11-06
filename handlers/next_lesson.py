@@ -3,6 +3,7 @@ import aiohttp
 from html import escape
 from urllib.parse import urlparse
 
+from aiogram import F
 from aiogram.filters import Command
 from aiogram.types import (
     Message,
@@ -114,6 +115,6 @@ async def send_next_lesson(message: Message):
 
 
 @router.message(Command("next_lesson"))
-@router.message(lambda message: message.text == "Следующий урок")
+@router.message(F.text.contains("Следующий урок"))
 async def next_lesson_handler(message: Message):
     await send_next_lesson(message)
