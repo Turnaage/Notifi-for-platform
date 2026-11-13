@@ -1,0 +1,29 @@
+student = \
+{
+    "student_id": 123,
+    "telegram_id": 12523
+}
+next_lesson = \
+{
+    "id": 1,
+    "name": "Users and groups",
+    "url" : "https://vkatit.com/courses/python-backend-ai/linux-basics/lessons/02-polzovateli-i-gruppy",
+}
+
+
+next_task
+{
+    "id": 1,
+    "title": "Divide the samples equally",
+    "url": "https://vkatit.com/practice/01-variables-types?p=2"
+}
+time_last_lesson = \
+{
+    'last_activity_at': '2026-10-29T10:30:00Z'
+}
+status_current_lesson = \
+{
+    "lesson_id": 1,
+    "status":  "under_review",
+    "review_comment": null,
+}
