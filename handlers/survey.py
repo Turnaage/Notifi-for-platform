@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 
-from core.config import router, logger
+from core.config import router, logger, TEST_TELEGRAM_ID
 
 from keyboards.survey import (
     get_survey_invite_keyboard,
@@ -16,6 +16,46 @@ from database.db import (
     save_survey,
     update_curator_states
 )
+
+# ---------------------------------------------------------------------------
+# Тестовая отправка предложения пройти опрос
+# ---------------------------------------------------------------------------
+
+@router.callback_query(F.data == "survey:test:start")
+async def start_test_survey_handler(
+    callback: CallbackQuery,
+    state: FSMContext
+):
+    logger.info(
+        "Нажата тестовая кнопка. Telegram ID: %s",
+        callback.from_user.id
+    )
+
+    await callback.answer()
+
+    if callback.from_user.id != TEST_TELEGRAM_ID:
+        logger.warning("Тестовый опрос запущен неавторизованным пользователем")
+        if callback.message:
+            await callback.message.answer(
+                "Тестовый опрос недоступен."
+            )
+        return
+
+    await state.update_data(
+        curator_id=0,
+        answers=[],
+        is_test=True
+    )
+
+    await state.set_state(SurveyStates.question_1)
+
+    if callback.message:
+        await callback.message.edit_text(
+            "1. Насколько вы довольны работой куратора?",
+            reply_markup=get_rating_keyboard()
+        )
+
+    logger.info("Тестовый опрос успешно запущен")
 
 
 # ---------------------------------------------------------------------------
@@ -47,7 +87,8 @@ async def start_survey_handler(
 
     await state.update_data(
         curator_id=curator_id,
-        answers=[]
+        answers=[],
+        is_test=False
     )
 
     await state.set_state(SurveyStates.question_1)
@@ -66,7 +107,11 @@ async def start_survey_handler(
 # ---------------------------------------------------------------------------
 
 @router.callback_query(F.data == "survey:decline")
-async def decline_survey_handler(callback: CallbackQuery):
+async def decline_survey_handler(
+    callback: CallbackQuery,
+    state: FSMContext
+):
+    await state.clear()
     await callback.answer("Вы отказались от прохождения опроса.")
 
     if callback.message:
@@ -124,6 +169,17 @@ async def survey_rating_handler(
         curator_id = data["curator_id"]
         user_id = callback.from_user.id
 
+        if data.get("is_test"):
+            await state.clear()
+            await callback.answer("Тестовый опрос завершён.")
+
+            if callback.message:
+                await callback.message.edit_text(
+                    "Тестовый опрос завершён. Ответы не сохранены."
+                )
+
+            return
+
         await save_survey(
             curator_id=curator_id,
             user_id=user_id,
@@ -138,7 +194,7 @@ async def survey_rating_handler(
 
         if callback.message:
             await callback.message.edit_text(
-                "Спасибо! Ваши оценки сохранены."
+                "Большое спасибо за участие в опросе! Ваши оценки сохранены."
             )
 
         logger.info(

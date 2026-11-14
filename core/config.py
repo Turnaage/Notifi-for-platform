@@ -16,6 +16,7 @@ class Settings(BaseSettings):
 
     PROXY: str | None = None
     API_TOKEN: str | None = None
+    TEST_TELEGRAM_ID: int
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -32,6 +33,7 @@ DATABASE_URL = settings.DATABASE_URL
 API_BASE_URL = settings.API_BASE_URL.rstrip("/")
 PROXY = settings.PROXY or None
 API_TOKEN = settings.API_TOKEN
+TEST_TELEGRAM_ID = settings.TEST_TELEGRAM_ID
 
 """         logger         """
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -82,3 +84,5 @@ REMINDER_SCHEDULES = {
 
 """         scheduler_config         """
 scheduler = AsyncIOScheduler(timezone="UTC")
+
+"""         test_settings            """

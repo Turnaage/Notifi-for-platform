@@ -28,3 +28,19 @@ def get_rating_keyboard():
             for i in range(1, 6)
         ]
     ])
+
+def get_test_survey_invite_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="Пройти тестовый опрос",
+                callback_data="survey:test:start"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="Отказаться",
+                callback_data="survey:decline"
+            )
+        ]
+    ])

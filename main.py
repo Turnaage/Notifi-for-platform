@@ -14,7 +14,8 @@ from handlers import (
     start,
     next_lesson,
     settings,
-    unknown
+    unknown,
+    survey
 )
 
 dp = Dispatcher(storage=MemoryStorage())
