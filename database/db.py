@@ -263,3 +263,158 @@ async def update_curator_reviews(curator_id: int):
         curator.reviews = reviews_count or 0
 
         await db.commit()
+async def update_curator_avg_rate(curator_id: int):
+    try:
+        async with get_db() as db:
+            curator = await db.get(Curator, curator_id)
+
+            if not curator:
+                logger.warning(
+                    "Куратор %s не найден при обновлении среднего рейтинга",
+                    curator_id,
+                )
+                return
+
+            scores = union_all(
+                select(Survey.question_1.label("score")).where(
+                    Survey.curator_id == curator_id
+                ),
+                select(Survey.question_2.label("score")).where(
+                    Survey.curator_id == curator_id
+                ),
+                select(Survey.question_3.label("score")).where(
+                    Survey.curator_id == curator_id
+                )
+            ).subquery()
+
+            avg_rate = await db.scalar(
+                select(func.avg(scores.c.score))
+            )
+
+            curator.avg_rate = round(float(avg_rate or 0), 1)
+            await db.commit()
+
+        logger.info(
+            "Средний рейтинг куратора %s обновлён: %s",
+            curator_id,
+            curator.avg_rate,
+        )
+
+    except Exception:
+        logger.exception(
+            "Ошибка обновления среднего рейтинга куратора %s",
+            curator_id,
+        )
+        raise
+
+
+async def update_curator_reviews(curator_id: int):
+    try:
+        async with get_db() as db:
+            curator = await db.get(Curator, curator_id)
+
+            if not curator:
+                logger.warning(
+                    "Куратор %s не найден при обновлении количества отзывов",
+                    curator_id,
+                )
+                return
+
+            reviews_count = await db.scalar(
+                select(func.count(Survey.id)).where(
+                    Survey.curator_id == curator_id
+                )
+            )
+
+            curator.reviews = reviews_count or 0
+
+            await db.commit()
+
+        logger.info(
+            "Количество отзывов куратора %s обновлено: %s",
+            curator_id,
+            reviews_count or 0,
+        )
+
+    except Exception:
+        logger.exception(
+            "Ошибка обновления количества отзывов куратора %s",
+            curator_id,
+        )
+        raise
+
+
+async def update_curator_states(curator_id: int):
+    try:
+        await update_curator_reviews(curator_id)
+        await update_curator_avg_rate(curator_id)
+
+        logger.info(
+            "Данные куратора %s успешно обновлены",
+            curator_id,
+        )
+
+    except Exception:
+        logger.exception(
+            "Ошибка обновления данных куратора %s",
+            curator_id,
+        )
+        raise
+
+
+async def save_survey(
+    curator_id: int,
+    user_id: int,
+    answers: list[int]
+):
+    try:
+        async with get_db() as db:
+            survey = Survey(
+                curator_id=curator_id,
+                user_id=user_id,
+                question_1=answers[0],
+                question_2=answers[1],
+                question_3=answers[2]
+            )
+
+            db.add(survey)
+            await db.commit()
+
+        logger.info(
+            "Опрос пользователя %s для куратора %s успешно сохранён",
+            user_id,
+            curator_id,
+        )
+
+    except Exception:
+        logger.exception(
+            "Ошибка сохранения опроса пользователя %s для куратора %s",
+            user_id,
+            curator_id,
+        )
+        raise
+
+
+async def get_users_for_survey():
+    try:
+        async with get_db() as db:
+            result = await db.execute(
+                select(User).where(
+                    User.curator_id.is_not(None)
+                )
+            )
+
+            users = result.scalars().all()
+
+        logger.info(
+            "Получен список пользователей для опроса. Количество: %s",
+            len(users),
+        )
+
+        return users
+
+    except Exception:
+        logger.exception(
+            "Ошибка получения списка пользователей для опроса"
+        )
+        raise

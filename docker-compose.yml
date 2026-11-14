@@ -16,9 +16,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
     healthcheck:
-      test:
-        - CMD-SHELL
-        - pg_isready -U ${POSTGRES_USER:-notify_user} -d ${POSTGRES_DB:-notify_db}
+      test: pg_isready -U $${POSTGRES_USER:-notify_user} -d $${POSTGRES_DB:-notify_db}
       interval: 5s
       timeout: 5s
       retries: 10

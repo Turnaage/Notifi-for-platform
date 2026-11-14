@@ -1,26 +1,11 @@
 from aiogram.filters import CommandStart
 from aiogram.types import (
     Message,
-    ReplyKeyboardMarkup,
-    KeyboardButton,
 )
 
 from database.db import ensure_user
 from core.config import logger, router
-
-
-main_keyboard = ReplyKeyboardMarkup(
-    keyboard=[
-        [
-            KeyboardButton(text="📖 Следующий урок"),
-        ],
-        [
-            KeyboardButton(text="⚙️ Настройки напоминаний"),
-        ],
-    ],
-    resize_keyboard=True,
-    is_persistent=True,
-)
+from keyboards.start import main_keyboard
 
 
 @router.message(CommandStart())

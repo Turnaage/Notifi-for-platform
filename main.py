@@ -2,19 +2,22 @@ import asyncio
 
 from aiogram import Dispatcher
 from aiogram.types import BotCommand
+from aiogram.fsm.storage.memory import MemoryStorage
 
 from scheduler import start_scheduler, scheduler
 
 from core.logging_config import setup_logging
 from core.bot import create_bot
 from database.db import close_db
-from core.config import logger, router
-import handlers.settings
-import handlers.start
-import handlers.next_lesson
-import handlers.unknown
+from core.config import logger, router, settings
+from handlers import (
+    start,
+    next_lesson,
+    settings,
+    unknown
+)
 
-dp = Dispatcher()
+dp = Dispatcher(storage=MemoryStorage())
 
 dp.include_router(router)
 

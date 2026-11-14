@@ -7,12 +7,11 @@ from aiogram import F
 from aiogram.filters import Command
 from aiogram.types import (
     Message,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
 )
 
 from services.api import get_next_lesson
 from core.config import logger, router
+from keyboards.next_lesson import get_keyboard_next_less
 
 
 async def send_next_lesson(message: Message):
@@ -85,16 +84,7 @@ async def send_next_lesson(message: Message):
         )
         return
 
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="Открыть урок",
-                    url=url,
-                )
-            ]
-        ]
-    )
+    keyboard = get_keyboard_next_less(url)
 
     safe_name = escape(str(name))
 

@@ -1,5 +1,4 @@
 from aiogram import Bot
-from aiohttp_socks import ProxyConnector
 from aiogram.client.session.aiohttp import AiohttpSession
 
 

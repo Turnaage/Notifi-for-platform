@@ -51,6 +51,11 @@ class User(Base):
         cascade="all,delete-orphan",
     )
 
+    curator_id: Mapped[int] = mapped_column(
+        ForeignKey("curators.id", ondelete="RESTRICT"),
+        nullable=True
+    )
+
 
 class Notification(Base):
     __tablename__ = "notifications"
@@ -161,7 +166,7 @@ class Survey(Base):
     )
 
     curator_id: Mapped[int] = mapped_column(
-        ForeignKey("curatorы.id", ondelete="RESTRICT"),
+        ForeignKey("curators.id", ondelete="RESTRICT"),
         nullable=False
     )
 
