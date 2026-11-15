@@ -1,21 +1,129 @@
 from aiogram import F
-from aiogram.types import Message, CallbackQuery
-from aiogram.fsm.context import FSMContext
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import StateFilter
+from aiogram.fsm.context import FSMContext
+from aiogram.types import CallbackQuery
 
 from core.config import router, logger, TEST_TELEGRAM_ID
-
 from keyboards.survey import (
-    get_survey_invite_keyboard,
-    get_rating_keyboard
+    get_rating_keyboard,
+    get_retry_keyboard,
+)
+from schemas.survey_states import SurveyStates, Survey
+from services.api import send_survey
+
+
+SURVEY_QUESTIONS = (
+    "1. Насколько вы довольны работой куратора?",
+    "2. Насколько куратор помогал вам в обучении?",
+    "3. Насколько вы довольны коммуникацией с куратором?",
 )
 
-from schemas.survey_states import SurveyStates
+STATE_BY_QUESTION = {
+    1: SurveyStates.question_1,
+    2: SurveyStates.question_2,
+    3: SurveyStates.question_3,
+}
 
-from database.db import (
-    save_survey,
-    update_curator_states
-)
+QUESTION_BY_STATE = {
+    state.state: question
+    for question, state in STATE_BY_QUESTION.items()
+}
+
+
+async def _answer(
+    callback: CallbackQuery,
+    text: str | None = None,
+    show_alert: bool = False,
+) -> None:
+    try:
+        await callback.answer(text=text, show_alert=show_alert)
+    except TelegramBadRequest:
+        logger.debug(
+            "Не удалось ответить на callback %s: он уже устарел",
+            callback.id,
+        )
+
+
+async def _edit_message(
+    callback: CallbackQuery,
+    text: str,
+    reply_markup=None,
+) -> None:
+    if callback.message is None:
+        return
+
+    try:
+        await callback.message.edit_text(
+            text=text,
+            reply_markup=reply_markup,
+        )
+    except TelegramBadRequest:
+        logger.exception(
+            "Не удалось отредактировать сообщение опроса %s",
+            callback.message.message_id,
+        )
+
+
+async def _start_survey(
+    callback: CallbackQuery,
+    state: FSMContext,
+    is_test: bool,
+) -> None:
+    await state.update_data(
+        answers=[],
+        is_test=is_test,
+        payload=None,
+    )
+    await state.set_state(SurveyStates.question_1)
+
+    await _edit_message(
+        callback,
+        SURVEY_QUESTIONS[0],
+        get_rating_keyboard(1),
+    )
+
+
+async def _submit_survey(
+    callback: CallbackQuery,
+    state: FSMContext,
+    payload: dict,
+) -> None:
+    await state.set_state(SurveyStates.sending)
+
+    await _edit_message(
+        callback,
+        "Отправляю оценки на платформу…",
+    )
+
+    try:
+        await send_survey(payload)
+    except Exception:
+        logger.exception(
+            "Не удалось отправить результаты опроса пользователя %s",
+            payload.get("telegram_id"),
+        )
+
+        await state.set_state(SurveyStates.retry)
+        await _edit_message(
+            callback,
+            "Не удалось отправить оценки. Попробуйте ещё раз.",
+            get_retry_keyboard(),
+        )
+        return
+
+    await state.clear()
+
+    await _edit_message(
+        callback,
+        "Большое спасибо за участие в опросе! Ваши оценки отправлены.",
+    )
+
+    logger.info(
+        "Пользователь %s завершил опрос",
+        payload.get("telegram_id"),
+    )
+
 
 # ---------------------------------------------------------------------------
 # Тестовая отправка предложения пройти опрос
@@ -24,82 +132,41 @@ from database.db import (
 @router.callback_query(F.data == "survey:test:start")
 async def start_test_survey_handler(
     callback: CallbackQuery,
-    state: FSMContext
+    state: FSMContext,
 ):
     logger.info(
         "Нажата тестовая кнопка. Telegram ID: %s",
-        callback.from_user.id
+        callback.from_user.id,
     )
-
-    await callback.answer()
 
     if callback.from_user.id != TEST_TELEGRAM_ID:
         logger.warning("Тестовый опрос запущен неавторизованным пользователем")
-        if callback.message:
-            await callback.message.answer(
-                "Тестовый опрос недоступен."
-            )
+        await _answer(
+            callback,
+            "Тестовый опрос недоступен.",
+            show_alert=True,
+        )
         return
 
-    await state.update_data(
-        curator_id=0,
-        answers=[],
-        is_test=True
-    )
-
-    await state.set_state(SurveyStates.question_1)
-
-    if callback.message:
-        await callback.message.edit_text(
-            "1. Насколько вы довольны работой куратора?",
-            reply_markup=get_rating_keyboard()
-        )
+    await _answer(callback)
+    await _start_survey(callback, state, is_test=True)
 
     logger.info("Тестовый опрос успешно запущен")
-
-
-# ---------------------------------------------------------------------------
-# Отправка предложения пройти опрос
-# ---------------------------------------------------------------------------
-
-async def send_survey_invite(
-    message: Message,
-    curator_id: int
-):
-    await message.answer(
-        "📋 <b>Оценка работы куратора</b>\n\n"
-        "Пожалуйста, пройди небольшой опрос и оцени работу своего куратора.",
-        reply_markup=get_survey_invite_keyboard(curator_id),
-        parse_mode="HTML"
-    )
 
 
 # ---------------------------------------------------------------------------
 # Начало опроса
 # ---------------------------------------------------------------------------
 
-@router.callback_query(F.data.startswith("survey:start:"))
+@router.callback_query(F.data.startswith("survey:start"))
 async def start_survey_handler(
     callback: CallbackQuery,
-    state: FSMContext
+    state: FSMContext,
 ):
-    curator_id = int(callback.data.rsplit(":", maxsplit=1)[-1])
-
-    await state.update_data(
-        curator_id=curator_id,
-        answers=[],
-        is_test=False
-    )
-
-    await state.set_state(SurveyStates.question_1)
-
-    await callback.answer()
-
-    if callback.message:
-        await callback.message.edit_text(
-            "1. Насколько вы довольны работой куратора?",
-            reply_markup=get_rating_keyboard()
-        )
+    # startswith нужен, чтобы старые кнопки survey:start:<id>
+    # тоже открывали опрос после смены формата callback_data.
+    await _answer(callback)
+    await _start_survey(callback, state, is_test=False)
 
 
 # ---------------------------------------------------------------------------
@@ -109,15 +176,25 @@ async def start_survey_handler(
 @router.callback_query(F.data == "survey:decline")
 async def decline_survey_handler(
     callback: CallbackQuery,
-    state: FSMContext
+    state: FSMContext,
 ):
-    await state.clear()
-    await callback.answer("Вы отказались от прохождения опроса.")
+    current_state = await state.get_state()
 
-    if callback.message:
-        await callback.message.edit_text(
-            "Вы отказались от прохождения опроса."
+    if current_state == SurveyStates.sending.state:
+        await _answer(
+            callback,
+            "Опрос уже отправляется.",
+            show_alert=True,
         )
+        return
+
+    await state.clear()
+    await _answer(callback, "Вы отказались от прохождения опроса.")
+
+    await _edit_message(
+        callback,
+        "Вы отказались от прохождения опроса.",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -128,87 +205,148 @@ async def decline_survey_handler(
     StateFilter(
         SurveyStates.question_1,
         SurveyStates.question_2,
-        SurveyStates.question_3
+        SurveyStates.question_3,
     ),
-    F.data.startswith("survey:rate:")
+    F.data.startswith("survey:rate:"),
 )
 async def survey_rating_handler(
     callback: CallbackQuery,
-    state: FSMContext
+    state: FSMContext,
 ):
-    score = int(callback.data.rsplit(":", maxsplit=1)[-1])
+    parts = callback.data.split(":")
 
-    if score not in range(1, 6):
-        await callback.answer("Недопустимая оценка.", show_alert=True)
+    # Новый формат: survey:rate:<question>:<score>.
+    # Старый survey:rate:<score> больше не принимаем: он не позволяет
+    # отличить ответ на текущий вопрос от двойного клика по прошлому.
+    if len(parts) != 4:
+        await _answer(
+            callback,
+            "Кнопка устарела. Начните опрос заново.",
+            show_alert=True,
+        )
+        return
+
+    try:
+        question_number = int(parts[2])
+        score = int(parts[3])
+    except ValueError:
+        await _answer(callback, "Недопустимая оценка.", show_alert=True)
+        return
+
+    if question_number not in STATE_BY_QUESTION or score not in range(1, 6):
+        await _answer(callback, "Недопустимая оценка.", show_alert=True)
+        return
+
+    current_state = await state.get_state()
+    current_question = QUESTION_BY_STATE.get(current_state)
+
+    if current_question is None:
+        await _answer(
+            callback,
+            "Сессия опроса не найдена. Начните заново.",
+            show_alert=True,
+        )
+        return
+
+    if question_number != current_question:
+        await _answer(
+            callback,
+            "Этот вопрос уже пройден.",
+            show_alert=True,
+        )
         return
 
     data = await state.get_data()
-    answers = data["answers"]
+    answers = list(data.get("answers", []))
+
+    if len(answers) != current_question - 1:
+        logger.warning(
+            "Некорректное состояние опроса пользователя %s: "
+            "вопрос %s, ответов %s",
+            callback.from_user.id,
+            current_question,
+            len(answers),
+        )
+
+        await state.clear()
+        await _answer(
+            callback,
+            "Сессия опроса устарела. Начните заново.",
+            show_alert=True,
+        )
+        await _edit_message(
+            callback,
+            "Сессия опроса устарела. Начните опрос заново.",
+        )
+        return
 
     answers.append(score)
 
-    await state.update_data(answers=answers)
+    # Отвечаем на callback сразу, чтобы Telegram не показывал
+    # бесконечную загрузку, пока идёт запрос в API.
+    await _answer(callback)
 
-    current_state = await state.get_state()
+    if current_question < 3:
+        next_question = current_question + 1
 
-    if current_state == SurveyStates.question_1.state:
-        await state.set_state(SurveyStates.question_2)
+        await state.update_data(answers=answers)
+        await state.set_state(STATE_BY_QUESTION[next_question])
 
-        question = (
-            "2. Насколько куратор помогал вам в обучении?"
+        await _edit_message(
+            callback,
+            SURVEY_QUESTIONS[next_question - 1],
+            get_rating_keyboard(next_question),
         )
-
-    elif current_state == SurveyStates.question_2.state:
-        await state.set_state(SurveyStates.question_3)
-
-        question = (
-            "3. Насколько вы довольны коммуникацией с куратором?"
-        )
-
-    else:
-        curator_id = data["curator_id"]
-        user_id = callback.from_user.id
-
-        if data.get("is_test"):
-            await state.clear()
-            await callback.answer("Тестовый опрос завершён.")
-
-            if callback.message:
-                await callback.message.edit_text(
-                    "Тестовый опрос завершён. Ответы не сохранены."
-                )
-
-            return
-
-        await save_survey(
-            curator_id=curator_id,
-            user_id=user_id,
-            answers=answers
-        )
-
-        await update_curator_states(curator_id)
-
-        await state.clear()
-
-        await callback.answer("Опрос завершён.")
-
-        if callback.message:
-            await callback.message.edit_text(
-                "Большое спасибо за участие в опросе! Ваши оценки сохранены."
-            )
-
-        logger.info(
-            "Пользователь %s завершил опрос куратора %s",
-            user_id,
-            curator_id
-        )
-
         return
 
-    await callback.answer()
+    await state.update_data(answers=answers)
 
-    if callback.message:
-        await callback.message.edit_text(
-            question,
-            reply_markup=get_rating_keyboard()
+    if data.get("is_test"):
+        await state.clear()
+        await _edit_message(
+            callback,
+            "Тестовый опрос завершён. Ответы не сохранены.",
         )
+        return
+
+    payload = Survey(
+        telegram_id=callback.from_user.id,
+        question_1=answers[0],
+        question_2=answers[1],
+        question_3=answers[2],
+    ).model_dump(mode="json")
+
+    await state.update_data(payload=payload)
+    await _submit_survey(callback, state, payload)
+
+
+# ---------------------------------------------------------------------------
+# Повторная отправка после ошибки API
+# ---------------------------------------------------------------------------
+
+@router.callback_query(
+    StateFilter(SurveyStates.retry),
+    F.data == "survey:retry",
+)
+async def retry_survey_handler(
+    callback: CallbackQuery,
+    state: FSMContext,
+):
+    data = await state.get_data()
+    payload = data.get("payload")
+
+    if not payload:
+        await state.clear()
+        await _answer(
+            callback,
+            "Данные опроса потеряны. Начните заново.",
+            show_alert=True,
+        )
+        await _edit_message(
+            callback,
+            "Данные опроса потеряны. Начните опрос заново.",
+        )
+        return
+
+    await _answer(callback)
+    await _submit_survey(callback, state, payload)

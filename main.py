@@ -74,8 +74,9 @@ async def main():
         await close_db()
         logger.info("Соединение с базой данных закрыто")
 
-        await aiogram_bot.session.close()
-        logger.info("Сессия Telegram закрыта")
+        if aiogram_bot is not None:
+            await aiogram_bot.session.close()
+            logger.info("Сессия Telegram закрыта")
 
 
 if __name__ == "__main__":

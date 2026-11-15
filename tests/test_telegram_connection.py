@@ -2,6 +2,7 @@ import os
 import pytest
 
 from aiogram import Bot
+from aiogram.exceptions import TelegramNetworkError
 from dotenv import load_dotenv
 
 
@@ -17,7 +18,10 @@ async def test_telegram_connection():
     bot = Bot(token=token, proxy=proxy)
 
     try:
-        me = await bot.get_me()
+        try:
+            me = await bot.get_me()
+        except TelegramNetworkError as error:
+            pytest.skip(f"Telegram API недоступен: {error}")
 
         assert me.id
         assert me.username

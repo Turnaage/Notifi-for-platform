@@ -1,4 +1,5 @@
 
+import aiohttp
 import pytest
 
 from types import SimpleNamespace
@@ -26,8 +27,10 @@ async def test_next_lesson_sends_lesson_details(monkeypatch):
     message.answer.assert_awaited_once()
 
     sent_text = message.answer.await_args.args[0]
+    reply_markup = message.answer.await_args.kwargs["reply_markup"]
+
     assert lesson["name"] in sent_text
-    assert lesson["url"] in sent_text
+    assert reply_markup.inline_keyboard[0][0].url == lesson["url"]
 
 
 @pytest.mark.asyncio
@@ -51,7 +54,7 @@ async def test_next_lesson_handles_api_failure(monkeypatch):
     monkeypatch.setattr(
         next_lesson,
         "get_next_lesson",
-        AsyncMock(side_effect=RuntimeError("API unavailable")),
+        AsyncMock(side_effect=aiohttp.ClientError("API unavailable")),
     )
 
     message = SimpleNamespace(

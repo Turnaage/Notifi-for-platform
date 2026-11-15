@@ -1,0 +1,7 @@
+# Ежемесячная рассылка опросов — 1-го числа в 10:00 (Europe/Moscow).
+# Файл устанавливается в контейнере survey-cron командой `crontab /app/crontab`.
+SHELL=/bin/sh
+PATH=/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+
+0 10 1 * * cd /app && /usr/local/bin/python /app/run_survey.py >> /app/logs/survey_cron.log 2>&1

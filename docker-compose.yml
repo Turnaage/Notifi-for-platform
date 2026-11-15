@@ -1,3 +1,14 @@
+x-app: &app
+  build: .
+  image: notify-bot:latest
+  env_file:
+    - .env
+  environment:
+    TZ: Europe/Moscow
+    DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-notify_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-notify_db}
+  volumes:
+    - ./logs:/app/logs
+
 services:
   db:
     image: postgres:16
@@ -9,9 +20,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-notify_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
 
-    ports:
-      - "5432:5432"
-
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -21,23 +29,42 @@ services:
       timeout: 5s
       retries: 10
 
-  bot:
-    build: .
-    container_name: notify_bot
-    restart: unless-stopped
-
-    env_file:
-      - .env
-
-    environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-notify_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-notify_db}
+  migrate:
+    <<: *app
+    container_name: notify_migrate
+    restart: "no"
+    command: ["alembic", "upgrade", "head"]
 
     depends_on:
       db:
         condition: service_healthy
 
-    volumes:
-      - ./logs:/app/logs
+  bot:
+    <<: *app
+    container_name: notify_bot
+    restart: unless-stopped
+    command: ["python", "main.py"]
+
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  survey-cron:
+    <<: *app
+    container_name: notify_survey_cron
+    restart: unless-stopped
+    command:
+      - sh
+      - -c
+      - crontab /app/crontab && exec /usr/sbin/cron -f
+
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   postgres_data:

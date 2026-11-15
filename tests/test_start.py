@@ -28,8 +28,8 @@ async def test_start_handler_registers_user_and_sends_welcome(monkeypatch):
     args = message.answer.await_args
     text = args.args[0]
 
-    assert "Привет!" in text
-    assert "Выбери действие:" in text
+    assert "Добро пожаловать!" in text
+    assert "Продолжим обучение?" in text
 
     keyboard = args.kwargs["reply_markup"]
     buttons = [
@@ -38,4 +38,7 @@ async def test_start_handler_registers_user_and_sends_welcome(monkeypatch):
         for button in row
     ]
 
-    assert buttons == ["Следующий урок", "Настройки"]
+    assert buttons == [
+        "📖 Следующий урок",
+        "⚙️ Настройки напоминаний",
+    ]

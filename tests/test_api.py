@@ -50,7 +50,9 @@ def setup_http_mock(monkeypatch, status=200, payload=None):
 
 
 @pytest.mark.asyncio
-async def test_get_progress_mock():
+async def test_get_progress_mock(monkeypatch):
+    monkeypatch.setattr(api, "MOCK_API", True)
+
     telegram_id = 2121892985
 
     result = await api.get_progress(telegram_id)

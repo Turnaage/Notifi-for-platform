@@ -1,3 +1,6 @@
+import asyncio
+import json
+
 import aiohttp
 
 from core.config import (
@@ -10,6 +13,9 @@ from core.config import (
 TIMEOUT = aiohttp.ClientTimeout(total=15)
 
 MOCK_API = False
+
+SURVEY_ATTEMPTS = 3
+SURVEY_RETRY_BASE_DELAY = 1.0
 
 
 def get_headers() -> dict[str, str]:
@@ -157,3 +163,96 @@ async def update_lesson_mode(
             telegram_id,
         )
         raise
+
+
+async def send_survey(payload: dict) -> dict:
+    telegram_id = payload.get("telegram_id")
+
+    logger.info(
+        "Отправка результатов опроса пользователя %s",
+        telegram_id,
+    )
+
+    last_error: Exception | None = None
+
+    for attempt in range(1, SURVEY_ATTEMPTS + 1):
+        try:
+            async with aiohttp.ClientSession(
+                headers=get_headers(),
+                timeout=TIMEOUT,
+            ) as session:
+                async with session.post(
+                    f"{API_BASE_URL}/survey",
+                    json=payload,
+                ) as response:
+                    response.raise_for_status()
+
+                    if response.status == 204:
+                        data = {"success": True}
+                    else:
+                        body = await response.text()
+
+                        if body.strip():
+                            data = json.loads(body)
+                        else:
+                            data = {"success": True}
+
+            logger.info(
+                "Результаты опроса пользователя %s успешно отправлены",
+                telegram_id,
+            )
+
+            return data
+
+        except aiohttp.ClientResponseError as error:
+            last_error = error
+
+            # 4xx, кроме 429, повторять бессмысленно.
+            if error.status < 500 and error.status != 429:
+                logger.exception(
+                    "API отклонил результаты опроса пользователя %s",
+                    telegram_id,
+                )
+                raise
+
+            logger.warning(
+                "Ошибка API при отправке опроса пользователя %s "
+                "(попытка %s/%s): %s",
+                telegram_id,
+                attempt,
+                SURVEY_ATTEMPTS,
+                error,
+            )
+
+        except (
+            aiohttp.ClientError,
+            asyncio.TimeoutError,
+            json.JSONDecodeError,
+        ) as error:
+            last_error = error
+
+            logger.warning(
+                "Сетевая ошибка при отправке опроса пользователя %s "
+                "(попытка %s/%s): %s",
+                telegram_id,
+                attempt,
+                SURVEY_ATTEMPTS,
+                error,
+            )
+
+        if attempt < SURVEY_ATTEMPTS:
+            delay = SURVEY_RETRY_BASE_DELAY * attempt
+            await asyncio.sleep(delay)
+
+    logger.error(
+        "Не удалось отправить результаты опроса пользователя %s "
+        "после %s попыток",
+        telegram_id,
+        SURVEY_ATTEMPTS,
+        exc_info=last_error,
+    )
+
+    if last_error is not None:
+        raise last_error
+
+    raise RuntimeError("Не удалось отправить результаты опроса")

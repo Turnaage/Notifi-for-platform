@@ -1,6 +1,4 @@
 from datetime import datetime
-from decimal import Decimal
-from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
@@ -11,7 +9,6 @@ from sqlalchemy import (
     String,
     func,
     text,
-    Numeric,
 )
 
 from sqlalchemy.orm import (
@@ -49,11 +46,6 @@ class User(Base):
     notifications: Mapped[list["Notification"]] = relationship(
         back_populates="user",
         cascade="all,delete-orphan",
-    )
-
-    curator_id: Mapped[int] = mapped_column(
-        ForeignKey("curators.id", ondelete="RESTRICT"),
-        nullable=True
     )
 
 
@@ -126,77 +118,4 @@ class UserSettings(Base):
 
     user: Mapped[User] = relationship(
         back_populates="settings"
-    )
-
-
-class Curator(Base):
-    __tablename__ = "curators"
-
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
-
-    full_name: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False
-    )
-
-    reviews: Mapped[int] = mapped_column(
-        Integer,
-        default=0,
-        nullable=False
-    )
-
-    avg_rate: Mapped[float] = mapped_column(
-        Numeric(2, 1),
-        default=0.0,
-        nullable=False
-    )
-
-class Survey(Base):
-    __tablename__ = "surveys"
-
-
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True
-    )
-
-    curator_id: Mapped[int] = mapped_column(
-        ForeignKey("curators.id", ondelete="RESTRICT"),
-        nullable=False
-    )
-
-    user_id: Mapped[int] = mapped_column(
-        BigInteger,
-        nullable=False
-    )
-
-    question_1: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        nullable=True
-    )
-
-    question_2: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        nullable=True
-    )
-
-    question_3: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        nullable=True
-    )
-
-    avg_rate: Mapped[Optional[Decimal]] = mapped_column(
-        Numeric(2, 1),
-        nullable=True
-    )
-
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        server_default=func.now(),
-        nullable=False
     )

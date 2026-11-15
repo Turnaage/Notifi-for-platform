@@ -10,9 +10,11 @@ def test_main_exposes_async_entry_point():
 
 
 def test_main_imports_required_routers():
-    assert hasattr(main, "start_router")
-    assert hasattr(main, "next_lesson_router")
-    assert hasattr(main, "settings_router")
+    assert hasattr(main, "router")
+    assert hasattr(main, "start")
+    assert hasattr(main, "next_lesson")
+    assert hasattr(main, "settings")
+    assert hasattr(main, "survey")
 
 
 
@@ -27,6 +29,4 @@ def test_main_registers_all_required_routers():
 
     registered_routers = dp.sub_routers
 
-    assert main.start_router in registered_routers
-    assert main.next_lesson_router in registered_routers
-    assert main.settings_router in registered_routers
+    assert main.router in registered_routers
